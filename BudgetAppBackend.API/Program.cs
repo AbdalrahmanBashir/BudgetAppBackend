@@ -115,10 +115,22 @@ internal class Program
 
         var app = builder.Build();
 
-        if (app.Environment.IsDevelopment())
+        if (app.Environment.IsProduction())
         {
             app.UseSwagger();
-            app.UseSwaggerUI();
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "API V1");
+                c.RoutePrefix = string.Empty; // Swagger UI at root URL
+            });
+        }
+        else
+        {
+            app.UseSwagger();
+            app.UseSwaggerUI(c =>
+            {
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "API V1");
+            });
         }
 
         app.UseMiddleware<GlobalExceptionMiddleware>();
