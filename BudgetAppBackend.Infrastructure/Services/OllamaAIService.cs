@@ -1,14 +1,10 @@
-﻿using System.Net.Http;
-using System.Net.Http.Headers;
+﻿using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using BudgetAppBackend.Application.Configuration;
 using BudgetAppBackend.Application.DTOs.AiAnalysisDTOS;
 using BudgetAppBackend.Application.DTOs.TransactionDTOs;
 using BudgetAppBackend.Application.Service;
-using Google.Apis.Auth.OAuth2;
-using Google.Apis.Http;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 

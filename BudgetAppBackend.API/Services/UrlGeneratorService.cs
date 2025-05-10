@@ -18,7 +18,9 @@ namespace BudgetAppBackend.API.Services
             urlBuilder.Append("/");
             urlBuilder.Append(path.TrimStart('/'));
 
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
             string userId = null;
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
             var queryParams = new List<string>();
 
             foreach (var property in routeValues.GetType().GetProperties())

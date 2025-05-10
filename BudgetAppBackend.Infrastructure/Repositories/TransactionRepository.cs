@@ -251,7 +251,8 @@ namespace BudgetAppBackend.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-               
+                Console.WriteLine($"Error in GetCategoryTotalsForLastFourMonthsAsync: {ex.Message}");
+
                 throw;
             }
         }

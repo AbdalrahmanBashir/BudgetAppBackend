@@ -58,7 +58,7 @@ namespace BudgetAppBackend.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-
+                Console.WriteLine(ex);
                 await transaction.RollbackAsync();
                 throw;
             }
@@ -199,6 +199,7 @@ namespace BudgetAppBackend.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex);
                 await transaction.RollbackAsync();
                 throw;
             }
@@ -234,6 +235,7 @@ namespace BudgetAppBackend.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex);
                 await transaction.RollbackAsync();
                 throw;
             }
@@ -363,6 +365,7 @@ namespace BudgetAppBackend.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex);
                 // Log the exception (implementation depends on your logging framework)
                 throw;
             }

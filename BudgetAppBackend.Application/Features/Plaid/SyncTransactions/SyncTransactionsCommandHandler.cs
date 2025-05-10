@@ -35,11 +35,13 @@ namespace BudgetAppBackend.Application.Features.Plaid.SyncTransactions
             SyncTransactionsCommand request,
             CancellationToken cancellationToken)
         {
+#pragma warning disable CS8073 // The result of the expression is always the same since a value of this type is never equal to 'null'
             if (request.userId == null)
             {
                 _logger.LogError("User ID cannot be null or empty");
                 throw new ArgumentException("User ID is required", nameof(request.userId));
             }
+#pragma warning restore CS8073 // The result of the expression is always the same since a value of this type is never equal to 'null'
 
             if (string.IsNullOrEmpty(request.AccessToken))
             {
@@ -297,10 +299,12 @@ namespace BudgetAppBackend.Application.Features.Plaid.SyncTransactions
                 throw new ArgumentException("Transaction ID cannot be null or empty", nameof(dto.PlaidTransactionId));
             }
 
+
             if (dto.userId == null)
             {
                 throw new ArgumentException("User ID cannot be null or empty", nameof(dto.userId));
             }
+
 
             return PlaidTransaction.Create(
                 UserId.Create(dto.userId),

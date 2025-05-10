@@ -27,7 +27,7 @@
         string? ConfidenceLevel);
 
     public record PlaidTransactionDto(
-       Guid userId,
+       Guid? userId,
        string PlaidTransactionId,
        string AccountId,
        decimal Amount,

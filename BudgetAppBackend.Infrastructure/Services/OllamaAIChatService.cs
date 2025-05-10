@@ -1,6 +1,4 @@
-﻿using System.Net.Http.Headers;
-using System.Net.Http.Json;
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 using BudgetAppBackend.Application.Configuration;
 using BudgetAppBackend.Application.DTOs.TransactionDTOs;
@@ -180,7 +178,8 @@ public class OllamaAIChatService : IAIChatService
         }
         catch (System.Text.Json.JsonException ex)
         {
-            _logger.LogError(ex, "Failed to parse JSON chunk: {JsonContent}", jsonContent);
+            _logger.LogError("JSON parsing error: {Error}", ex.Message);
+
             return "\n[Data parsing error]";
         }
     }
