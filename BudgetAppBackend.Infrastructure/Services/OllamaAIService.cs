@@ -1,11 +1,16 @@
-﻿using System.Text;
+﻿using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using BudgetAppBackend.Application.Configuration;
 using BudgetAppBackend.Application.DTOs.AiAnalysisDTOS;
 using BudgetAppBackend.Application.DTOs.TransactionDTOs;
 using BudgetAppBackend.Application.Service;
+using Google.Apis.Auth.OAuth2;
+using Google.Apis.Http;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 
 namespace BudgetAppBackend.Infrastructure.Services
 {
@@ -17,12 +22,14 @@ namespace BudgetAppBackend.Infrastructure.Services
     {
 
         private readonly HttpClient _httpClient;
-        private readonly OllamaSettings _ollamaSettings;
+        //private readonly OllamaSettings _ollamaSettings;
+        private readonly Geminisetting _geminiSettings;
 
-        public OllamaAIService(HttpClient httpClient, IOptions<OllamaSettings> ollamaSettings)
+        public OllamaAIService(HttpClient httpClient, IOptions<Geminisetting> geminisetting)
         {
             _httpClient = httpClient;
-            _ollamaSettings = ollamaSettings.Value;
+            //_ollamaSettings = ollamaSettings.Value;
+            _geminiSettings = geminisetting.Value;
         }
 
         /// <summary>
@@ -103,43 +110,33 @@ namespace BudgetAppBackend.Infrastructure.Services
                 "Use the transaction data provided to support your analysis. and please do not change the property names form overview to comparisonAnalysis");
 
             var prompt = promptBuilder.ToString();
-            var requestBody = new
-            {
-                model = _ollamaSettings.Model,
-                prompt = prompt,
-                max_tokens = 5000,
-                temperature = 0.0,
-                format = "json"
-            };
+            var payload = GeneratePayload(prompt);
+            var geminiEndpoint = $"{_geminiSettings.EndPoints}?key={_geminiSettings.GeminiApiKey}";
 
-            var jsonContent = new StringContent(
-                JsonSerializer.Serialize(requestBody),
-                Encoding.UTF8,
-                "application/json"
-            );
 
-            // Send request to Ollama LLM
-            var ollamaEndpoint = _ollamaSettings.Endpoint;
+            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            var response = await _httpClient.PostAsync($"{ollamaEndpoint}/v1/completions", jsonContent);
-          
-            response.EnsureSuccessStatusCode();
-
-            var responseContent = await response.Content.ReadAsStringAsync();
+            HttpResponseMessage responseContent = await _httpClient.PostAsync(geminiEndpoint, new StringContent(payload, Encoding.UTF8, "application/json"));
 
             try
             {
-                using var document = JsonDocument.Parse(responseContent);
+                using var document = JsonDocument.Parse(await responseContent.Content.ReadAsStreamAsync());
                 var root = document.RootElement;
+                Console.WriteLine($"Response root: {root}");
 
-                var llmResponse = root.GetProperty("choices")[0].GetProperty("text").GetString();
+                var llmResponse = root
+                    .GetProperty("candidates")[0]
+                    .GetProperty("content")
+                    .GetProperty("parts")[0]
+                    .GetProperty("text")
+                    .GetString();
                 if (string.IsNullOrEmpty(llmResponse))
                 {
                     throw new InvalidOperationException("Empty response received from LLM");
                 }
 
                 // Strip possible formatting artifacts
-                llmResponse = Regex.Replace(llmResponse, @"<think>.*?</think>", "", RegexOptions.Singleline);
+                //llmResponse = Regex.Replace(llmResponse, @"<think>.*?</think>", "", RegexOptions.Singleline);
 
                 Console.WriteLine($"Raw LLM Response: {llmResponse}");
 
@@ -210,7 +207,7 @@ namespace BudgetAppBackend.Infrastructure.Services
                 };
 
                 // Convert back to JSON string
-                jsonString = JsonSerializer.Serialize(cleanedObject);
+                jsonString = System.Text.Json.JsonSerializer.Serialize(cleanedObject);
 
                 Console.WriteLine($"Cleaned JSON string: {jsonString}");
 
@@ -234,7 +231,7 @@ namespace BudgetAppBackend.Infrastructure.Services
                         ?? "This analysis is for informational purposes only and not financial advice"
                 );
             }
-            catch (JsonException ex)
+            catch (System.Text.Json.JsonException ex)
             {
                 throw new InvalidOperationException($"Failed to parse JSON. Response content: {responseContent}", ex);
             }
@@ -287,6 +284,32 @@ namespace BudgetAppBackend.Infrastructure.Services
                 }
             }
             return string.Empty;
+        }
+
+        private static string GeneratePayload(string text)
+        {
+            var payload = new
+            {
+                contents = new[]
+                {
+            new
+            {
+                parts = new[]
+                {
+                    new { text = text }
+                },
+                role = "user"
+            }
+        },
+                generation_config = new
+                {
+                    temperature = 0.4,
+                    top_p = 1,
+                    top_k = 32,
+                    max_output_tokens = 2048
+                }
+            };
+            return JsonConvert.SerializeObject(payload);
         }
     }
 

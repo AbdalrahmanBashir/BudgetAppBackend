@@ -1,4 +1,5 @@
-﻿using System.Net.Http.Json;
+﻿using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using BudgetAppBackend.Application.Configuration;
@@ -7,95 +8,93 @@ using BudgetAppBackend.Application.Service;
 using BudgetAppBackend.Domain.BudgetAggregate;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 
 public class OllamaAIChatService : IAIChatService
 {
     private readonly HttpClient _httpClient;
-    private readonly OllamaSettings _ollamaSettings;
+    private readonly Geminisetting _geminiSettings;
     private readonly ILogger<OllamaAIChatService> _logger;
 
     public OllamaAIChatService(
         HttpClient httpClient,
-        IOptions<OllamaSettings> ollamaSettings,
+        IOptions<Geminisetting> geminisetting,
         ILogger<OllamaAIChatService> logger)
     {
         _httpClient = httpClient;
-        _ollamaSettings = ollamaSettings.Value;
+        _geminiSettings = geminisetting.Value;
         _logger = logger;
     }
 
     public async IAsyncEnumerable<string> StreamMessageAsync(string prompt, IEnumerable<TransactionDto> transactions, List<Budget> budgetDtos)
     {
         var fullPrompt = BuildPrompt(prompt, transactions, budgetDtos);
-        _logger.LogInformation("Sending prompt to Ollama AI: {Prompt}", fullPrompt);
+        _logger.LogInformation("Sending prompt to Gemini AI: {Prompt}", fullPrompt);
 
-        var ollamaEndpoint = _ollamaSettings.Endpoint;
-        float temperature = 0.0f;
-        int maxTokens = 10;
+        var geminiEndpoint = $"{_geminiSettings.stream}?key={_geminiSettings.GeminiApiKey}";
+        var payload = GeneratePayload(fullPrompt);
 
-        using var response = await _httpClient.SendAsync(
-        new HttpRequestMessage(HttpMethod.Post, $"{ollamaEndpoint}/api/generate")
+        using var request = new HttpRequestMessage(HttpMethod.Post, geminiEndpoint)
         {
-            Content = new StringContent(
-                JsonSerializer.Serialize(new
-                {
-                    model = _ollamaSettings.Model,
-                    prompt = fullPrompt,
-                    stream = true,
-                    temperature,
-                    max_tokens = maxTokens
-                }),
-                Encoding.UTF8,
-                "application/json"
-            ),
-            Headers = { { "Accept", "text/event-stream" } }
-        },
-          HttpCompletionOption.ResponseHeadersRead
-        );
+            Content = new StringContent(payload, Encoding.UTF8, "application/json")
+        };
+
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
 
         if (!response.IsSuccessStatusCode)
         {
-            _logger.LogError("Ollama API request failed with status: {StatusCode}", response.StatusCode);
+            var errorContent = await response.Content.ReadAsStringAsync();
+            _logger.LogError("API request failed: {StatusCode} - {Error}", response.StatusCode, errorContent);
             yield return $"\n[Error: API request failed ({response.StatusCode})]";
             yield break;
         }
 
-        var responseStream = await response.Content.ReadAsStreamAsync();
-        using var reader = new StreamReader(
-            responseStream,
-            Encoding.UTF8,
-            detectEncodingFromByteOrderMarks: false,
-            bufferSize: 1,
-            leaveOpen: true
-        );
+        await using var stream = await response.Content.ReadAsStreamAsync();
+        using var reader = new StreamReader(stream);
 
-        var buffer = new char[1];
+        var buffer = new char[1024];
         var jsonBuffer = new StringBuilder();
+        var inObject = false;
+        var braceCount = 0;
 
-        while (true)
+        while (!reader.EndOfStream)
         {
-            var bytesRead = await reader.ReadAsync(buffer, 0, 1);
-            if (bytesRead == 0) break;
-
-            jsonBuffer.Append(buffer[0]);
-
-            if (buffer[0] == '\n')
+            var bytesRead = await reader.ReadAsync(buffer, 0, buffer.Length);
+            for (int i = 0; i < bytesRead; i++)
             {
-                var line = jsonBuffer.ToString();
-                jsonBuffer.Clear();
+                var c = buffer[i];
 
-                if (string.IsNullOrWhiteSpace(line)) continue;
-
-                using var jsonDoc = JsonDocument.Parse(line);
-                if (jsonDoc.RootElement.TryGetProperty("response", out var responseProperty) &&
-                    responseProperty.GetString() is { } chunk &&
-                    !string.IsNullOrEmpty(chunk))
+                if (c == '{')
                 {
-                    yield return chunk;
+                    braceCount++;
+                    inObject = true;
+                }
+                else if (c == '}')
+                {
+                    braceCount--;
+                }
+
+                if (inObject) jsonBuffer.Append(c);
+
+                if (inObject && braceCount == 0)
+                {
+                    inObject = false;
+                    var jsonContent = jsonBuffer.ToString();
+                    jsonBuffer.Clear();
+
+                    if (!string.IsNullOrWhiteSpace(jsonContent))
+                    {
+                        var chunk = ParseJsonChunk(jsonContent);
+                        if (!string.IsNullOrEmpty(chunk))
+                        {
+                            yield return chunk;
+                        }
+                    }
                 }
             }
         }
     }
+
 
     private string BuildPrompt(string prompt, IEnumerable<TransactionDto> transactions, List<Budget> budgets)
     {
@@ -127,5 +126,62 @@ public class OllamaAIChatService : IAIChatService
     private class OllamaResponse
     {
         public string Response { get; set; } = string.Empty;
+    }
+
+    private static string GeneratePayload(string text)
+    {
+        var payload = new
+        {
+            contents = new[]
+            {
+            new
+            {
+                parts = new[]
+                {
+                    new { text = text }
+                },
+                role = "user"
+            }
+        },
+            generation_config = new
+            {
+                temperature = 0.4,
+                
+                top_p = 1,
+                top_k = 32,
+                max_output_tokens = 2048
+            }
+        };
+        return JsonConvert.SerializeObject(payload);
+    }
+
+    private string? ParseJsonChunk(string jsonContent)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(jsonContent);
+            var root = doc.RootElement;
+
+            // Handle error responses
+            if (root.TryGetProperty("error", out var errorElement))
+            {
+                var errorMessage = errorElement.GetProperty("message").GetString();
+                _logger.LogError("Gemini API error: {Error}", errorMessage);
+                return $"\n[API Error: {errorMessage}]";
+            }
+
+            // Extract text content
+            return root
+                .GetProperty("candidates")[0]
+                .GetProperty("content")
+                .GetProperty("parts")[0]
+                .GetProperty("text")
+                .GetString();
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            _logger.LogError(ex, "Failed to parse JSON chunk: {JsonContent}", jsonContent);
+            return "\n[Data parsing error]";
+        }
     }
 }

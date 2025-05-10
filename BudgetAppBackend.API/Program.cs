@@ -25,6 +25,7 @@ internal class Program
         .AddJwtBearer(options =>
         {
             var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
+            
 
             options.TokenValidationParameters = new TokenValidationParameters
             {

@@ -65,12 +65,12 @@ namespace BudgetAppBackend.Infrastructure
                 options.SenderName = configuration.GetSection("EmailSettings")["SenderName"];
             });
 
-            // Configure OllamaSettings
-            services.Configure<OllamaSettings>(options =>
+            
+            services.Configure<Geminisetting>(options =>
             {
-                options.Endpoint = configuration.GetSection("OllamaSettings")["Endpoint"];
-                options.Model = configuration.GetSection("OllamaSettings")["Model"];
-                options.Model2 = configuration.GetSection("OllamaSettings")["Model2"];
+                options.EndPoints = configuration.GetSection("Gemini")["Endpoint"] ;
+                options.GeminiApiKey = configuration.GetSection("Gemini")["ApiKey"];
+                options.stream = configuration.GetSection("Gemini")["stream"];
             });
 
             // Configure PlaidOptions
