@@ -20,10 +20,10 @@ jobs:
         with:
           dotnet-version: '8.x'
 
-      - name: Build with dotnet
+      - name: Build the solution
         run: dotnet build --configuration Release
 
-      - name: Publish API Project
+      - name: Publish the API project
         run: dotnet publish BudgetAppBackend.API/BudgetAppBackend.API.csproj -c Release -o ./publish
 
       - name: Upload artifact for deployment
@@ -43,7 +43,7 @@ jobs:
       contents: read
 
     steps:
-      - name: Download artifact
+      - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: .net-app
@@ -61,4 +61,4 @@ jobs:
         with:
           app-name: 'budget-app-back-end'
           slot-name: 'Production'
-          package: ./publish # Match the path from upload-artifact
+          package: .  # Deploys from the current directory (downloaded artifact)
