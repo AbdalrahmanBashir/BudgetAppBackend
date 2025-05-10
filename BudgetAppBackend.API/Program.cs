@@ -102,7 +102,7 @@ internal class Program
         {
             options.AddPolicy("AllowOrigin", policy =>
             {
-                policy.WithOrigins("budget-app-front-end-awa2hkdchyhsdnf2.eastus-01.azurewebsites.net")
+                policy.WithOrigins("https://victorious-plant-06de42c0f.6.azurestaticapps.net", "http://10.2.0.2:3000")
                       .AllowCredentials()
                       .AllowAnyMethod()
                       .AllowAnyHeader()
@@ -111,7 +111,7 @@ internal class Program
         });
 
         builder.Services.AddHttpsRedirection(options => { options.HttpsPort = 7105; });
-        builder.WebHost.UseUrls("budget-app-back-end-dwdmfua0h9bxhzhh.eastus-01.azurewebsites.net");
+        builder.WebHost.UseUrls("https://localhost:7105");
 
         var app = builder.Build();
 
