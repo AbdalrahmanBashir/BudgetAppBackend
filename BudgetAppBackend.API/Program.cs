@@ -110,8 +110,8 @@ internal class Program
             });
         });
 
-        //builder.Services.AddHttpsRedirection(options => { options.HttpsPort = 7105; });
-        //builder.WebHost.UseUrls("https://localhost:7105");
+        builder.Services.AddHttpsRedirection(options => { options.HttpsPort = 7105; });
+        builder.WebHost.UseUrls("https://localhost:7105");
 
         var app = builder.Build();
 
