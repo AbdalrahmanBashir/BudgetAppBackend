@@ -102,7 +102,7 @@ internal class Program
         {
             options.AddPolicy("AllowOrigin", policy =>
             {
-                policy.WithOrigins("https://victorious-plant-06de42c0f.6.azurestaticapps.net", "http://10.2.0.2:3000")
+                policy.WithOrigins("https://delightful-mushroom-0e53db00f.6.azurestaticapps.net", "http://10.2.0.2:3000")
                       .AllowCredentials()
                       .AllowAnyMethod()
                       .AllowAnyHeader()
@@ -110,8 +110,8 @@ internal class Program
             });
         });
 
-        builder.Services.AddHttpsRedirection(options => { options.HttpsPort = 7105; });
-        builder.WebHost.UseUrls("https://localhost:7105");
+        builder.Services.AddControllersWithViews();
+
 
         var app = builder.Build();
 
@@ -120,8 +120,8 @@ internal class Program
             app.UseSwagger();
             app.UseSwaggerUI(c =>
             {
-                c.SwaggerEndpoint("/swagger/v1/swagger.json", "API V1");
-                c.RoutePrefix = string.Empty; // Swagger UI at root URL
+                c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API in Production");
+                //c.RoutePrefix = string.Empty; // Swagger UI at root URL
             });
         }
         else

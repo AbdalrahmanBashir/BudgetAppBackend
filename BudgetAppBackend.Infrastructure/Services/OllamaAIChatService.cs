@@ -13,6 +13,11 @@ public class OllamaAIChatService : IAIChatService
     private readonly HttpClient _httpClient;
     private readonly Geminisetting _geminiSettings;
     private readonly ILogger<OllamaAIChatService> _logger;
+    private readonly string[] _financialKeywords = new[] {
+        "budget", "spending", "expense", "income", "savings",
+        "transaction", "category", "cashflow", "financial",
+        "money", "cost", "price", "amount", "balance", "account"
+    };
 
     public OllamaAIChatService(
         HttpClient httpClient,
@@ -26,6 +31,24 @@ public class OllamaAIChatService : IAIChatService
 
     public async IAsyncEnumerable<string> StreamMessageAsync(string prompt, IEnumerable<TransactionDto> transactions, List<Budget> budgetDtos)
     {
+        if (string.IsNullOrWhiteSpace(prompt))
+        {
+            yield return "\n[Error: Prompt cannot be empty]";
+            yield break;
+        }
+        if (!IsFinancialQuery(prompt))
+        {
+            var detectedKeywords = _financialKeywords.Where(k => prompt.ToLower().Contains(k)).ToList();
+            var ss = "I can only assist with financial and budgeting-related questions. Please ask me about your transactions, budgets, spending patterns, or financial analysis.";
+
+            if (detectedKeywords.Any())
+            {
+                ss += $"\n\nI noticed you mentioned: {string.Join(", ", detectedKeywords)}. Please rephrase your question to focus on these financial aspects.";
+            }
+
+            yield return ss;
+            yield break;
+        }
         var fullPrompt = BuildPrompt(prompt, transactions, budgetDtos);
         _logger.LogInformation("Sending prompt to Gemini AI: {Prompt}", fullPrompt);
 
@@ -183,4 +206,13 @@ public class OllamaAIChatService : IAIChatService
             return "\n[Data parsing error]";
         }
     }
+
+    private bool IsFinancialQuery(string prompt)
+    {
+        var lowerPrompt = prompt.ToLower();
+        return _financialKeywords.Any(keyword => lowerPrompt.Contains(keyword));
+    }
+
+
+
 }

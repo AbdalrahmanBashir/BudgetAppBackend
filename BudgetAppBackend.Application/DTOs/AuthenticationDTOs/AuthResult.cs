@@ -1,6 +1,4 @@
-﻿using BudgetAppBackend.Domain.UserAggregate.ValueObjects;
-
-namespace BudgetAppBackend.Application.DTOs.AuthenticationDTOs
+﻿namespace BudgetAppBackend.Application.DTOs.AuthenticationDTOs
 {
     public class AuthResult
     {
@@ -11,6 +9,7 @@ namespace BudgetAppBackend.Application.DTOs.AuthenticationDTOs
         public string? RefreshToken { get; set; }
         public DateTime RefreshTokenExpiry { get; set; }
         public string? Message { get; set; }
+        public string? PlaidToken { get; set; }
     }
     
 }

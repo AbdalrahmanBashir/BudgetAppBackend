@@ -1,7 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
-using BudgetAppBackend.Application.Contracts;
+﻿using BudgetAppBackend.Application.Contracts;
 using BudgetAppBackend.Application.DTOs.AuthenticationDTOs;
-using BudgetAppBackend.Application.Models.PlaidModels;
 using BudgetAppBackend.Application.Service;
 using BudgetAppBackend.Domain.UserAggregate.Entities;
 using MediatR;
@@ -67,7 +65,11 @@ namespace BudgetAppBackend.Application.Features.Authentication.Login
                 
             }
 
-            var plaidaccount = await _plaidAccountFingerprintRepository.GetByUserIdAsync(user.Id);
+            var plaidAccounts = await _plaidAccountFingerprintRepository.GetByUserIdAsync(user.Id);
+            var topPlaidAccount = plaidAccounts
+                .OrderByDescending(p => p.LastUpdated)
+                .FirstOrDefault();
+
 
             return new AuthResult
             {
@@ -77,7 +79,8 @@ namespace BudgetAppBackend.Application.Features.Authentication.Login
                 Token = token,
                 RefreshToken = rawRefreshToken,
                 RefreshTokenExpiry = newRefreshTokenExpiry,
-                Message = "You have successfully logged in! Welcome back."
+                Message = "You have successfully logged in! Welcome back.",
+                PlaidToken = topPlaidAccount?.Fingerprint,
             };
         }
     }
